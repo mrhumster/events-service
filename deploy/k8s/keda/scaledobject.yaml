@@ -1,0 +1,29 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: events-keda
+  namespace: go-app
+spec:
+  scaleTargetRef:
+    name: events-worker
+  cooldownPeriod: 120
+  maxReplicaCount: 1
+  minReplicaCount: 0
+  triggers:
+    - type: redis
+      authenticationRef:
+        name: keda-redis-auth
+      metadata:
+        address: casbin-redis-master.go-app.svc.cluster.local:6379
+        databaseIndex: "3"
+        listName: "asynq:{events}:pending"
+        listLength: "2"
+    - type: redis
+      authenticationRef:
+        name: keda-redis-auth
+      metadata:
+        address: casbin-redis-master.go-app.svc.cluster.local:6379
+        databaseIndex: "3"
+        listName: "asynq:{events}:active"
+        listLength: "2"
+        type: "zset"

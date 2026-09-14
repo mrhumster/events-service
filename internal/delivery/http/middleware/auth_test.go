@@ -1,0 +1,88 @@
+package middleware_test
+
+import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/gin-gonic/gin"
+	"github.com/mrhumster/events-service/config"
+	"github.com/mrhumster/events-service/internal/delivery/http/middleware"
+	"github.com/mrhumster/events-service/internal/service"
+	"github.com/mrhumster/identity-service/pkg/dto"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func tokenServiceFor(t *testing.T, key *rsa.PublicKey) *service.TokenService {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pkix, err := x509.MarshalPKIXPublicKey(key)
+		require.NoError(t, err)
+		_, _ = w.Write(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pkix}))
+	}))
+	t.Cleanup(srv.Close)
+
+	ts, err := service.NewTokenService(&config.JWT{AccessPublicKeyURL: srv.URL})
+	require.NoError(t, err)
+	return ts
+}
+
+func signToken(t *testing.T, key *rsa.PrivateKey, userID string) string {
+	t.Helper()
+	claims := &dto.AccessClaims{
+		UserID: userID,
+		Role:   "member",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(key)
+	require.NoError(t, err)
+	return signed
+}
+
+func TestAuthMiddleware(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	ts := tokenServiceFor(t, &key.PublicKey)
+	userID := uuid.New().String()
+
+	router := gin.New()
+	router.GET("/protected", middleware.AuthMiddleware(ts), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"user_id": middleware.UserID(c).String()})
+	})
+
+	t.Run("missing token -> 401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/protected", nil)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("bad token -> 401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", "Bearer garbage")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("valid token -> 200 with user", func(t *testing.T) {
+		token := signToken(t, key, userID)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/protected", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"user_id":"`+userID+`"}`, w.Body.String())
+	})
+}

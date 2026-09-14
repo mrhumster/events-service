@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-reader
+  namespace: go-app
+spec:
+  type: ClusterIP
+  selector:
+    app: events-reader
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

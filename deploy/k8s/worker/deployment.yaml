@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-worker
+  namespace: go-app
+  labels:
+    app: events-worker
+spec:
+  selector:
+    matchLabels:
+      app: events-worker
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+      labels:
+        app: events-worker
+    spec:
+      containers:
+        - name: events-worker
+          image: xomrkob/events-service:latest
+          imagePullPolicy: Always
+          args: ["worker"]
+          ports:
+            - name: metrics
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: events-service-config
+          env:
+            - name: REDIS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: casbin-redis
+                  key: redis-password
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_PASS

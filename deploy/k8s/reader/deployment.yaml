@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-reader
+  namespace: go-app
+  labels:
+    app: events-reader
+spec:
+  selector:
+    matchLabels:
+      app: events-reader
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+      labels:
+        app: events-reader
+    spec:
+      containers:
+        - name: events-reader
+          image: xomrkob/events-service:latest
+          imagePullPolicy: Always
+          args: ["server"]
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: events-service-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_PASS
