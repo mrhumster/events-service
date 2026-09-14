@@ -10,6 +10,7 @@ import (
 	"github.com/mrhumster/events-service/internal/delivery/http/handler"
 	"github.com/mrhumster/events-service/internal/delivery/http/middleware"
 	"github.com/mrhumster/events-service/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/gorm"
 )
 
@@ -41,6 +42,8 @@ func SetupRoutes(db *gorm.DB, cfg *config.Config, svc service.EventsService, tok
 		authed.POST("/:id/read", h.Read)
 		authed.POST("/read-all", h.ReadAll)
 	}
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	r.GET("/health", func(c *gin.Context) {
 		if sqlDB, err := db.DB(); err == nil {

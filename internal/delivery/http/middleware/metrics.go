@@ -10,12 +10,12 @@ import (
 
 var (
 	httpRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "events_http_requests_total",
+		Name: "http_requests_total",
 		Help: "Total number of HTTP requests served by the events reader.",
 	}, []string{"method", "endpoint", "status"})
 
 	httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "events_http_request_duration_seconds",
+		Name:    "http_request_duration_seconds",
 		Help:    "HTTP request latency in seconds.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"method", "endpoint", "status"})
