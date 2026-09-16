@@ -24,6 +24,10 @@ const (
 	EventUserRegistered       = "user.registered"
 	EventUserLogin            = "user.login"
 	EventEmailVerified        = "user.email.verified"
+	EventCommentCreated       = "comment.created"
+	EventCommentReplied       = "comment.replied"
+	EventReactionLiked        = "reaction.liked"
+	EventReactionDisliked     = "reaction.disliked"
 )
 
 // ValidEventType reports whether the given string is a known event type.
@@ -33,7 +37,9 @@ func ValidEventType(t string) bool {
 		EventTranscodeStarted, EventTranscodeCompleted, EventTranscodeFailed,
 		EventStreamReady, EventStreamPublished, EventStreamUnpublished,
 		EventStreamDeleted, EventStreamReprocessed,
-		EventUserRegistered, EventUserLogin, EventEmailVerified:
+		EventUserRegistered, EventUserLogin, EventEmailVerified,
+		EventCommentCreated, EventCommentReplied,
+		EventReactionLiked, EventReactionDisliked:
 		return true
 	}
 	return false
