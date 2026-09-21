@@ -21,6 +21,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	assert.Equal(t, 3, cfg.Redis.QueueDB)
 	assert.Equal(t, 2, cfg.Worker.Concurrency)
 	assert.Equal(t, "", cfg.JWT.AccessPublicKeyURL)
+	assert.Equal(t, 120, cfg.Server.ReadRateLimitPerMin)
 	assert.Equal(t, []string{"http://localhost:5173", "https://example.com", "https://events.example.com"}, cfg.Server.AllowedOrigins)
 }
 
@@ -33,6 +34,7 @@ func TestLoadConfigReadsEnv(t *testing.T) {
 	t.Setenv("WORKER_CONCURRENCY", "8")
 	t.Setenv("SERVER_ADDR", ":9090")
 	t.Setenv("JWT_ACCESS_PUBLIC_KEY_URL", "http://identity-service:80/auth/public-key")
+	t.Setenv("EVENTS_READ_RATE_LIMIT", "60")
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
@@ -44,6 +46,7 @@ func TestLoadConfigReadsEnv(t *testing.T) {
 	assert.Equal(t, 5, cfg.Redis.QueueDB)
 	assert.Equal(t, 8, cfg.Worker.Concurrency)
 	assert.Equal(t, ":9090", cfg.Server.ServerAddr)
+	assert.Equal(t, 60, cfg.Server.ReadRateLimitPerMin)
 	assert.Equal(t, "http://identity-service:80/auth/public-key", cfg.JWT.AccessPublicKeyURL)
 }
 

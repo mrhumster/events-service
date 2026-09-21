@@ -20,6 +20,10 @@ type Server struct {
 	Mode           string
 	AllowedOrigins []string
 	MetricsAddr    string
+	// ReadRateLimitPerMin caps authenticated read requests (feed, unread
+	// count, marks) per user per minute. Keyed on the JWT user id, so it
+	// cannot be spoofed; guards against feed-polling floods.
+	ReadRateLimitPerMin int
 }
 
 type Database struct {
@@ -56,6 +60,10 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("worker concurrency: parse WORKER_CONCURRENCY: %w", err)
 	}
+	readRateLimit, err := strconv.ParseUint(getEnv("EVENTS_READ_RATE_LIMIT", "120"), 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("events read rate limit: parse EVENTS_READ_RATE_LIMIT: %w", err)
+	}
 
 	return &Config{
 		Database: Database{
@@ -68,10 +76,11 @@ func LoadConfig() (*Config, error) {
 			TimeZone: "UTC",
 		},
 		Server: Server{
-			ServerAddr:     getEnv("SERVER_ADDR", ":8080"),
-			Mode:           getEnv("MODE", "debug"),
-			AllowedOrigins: commaSplit(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,https://example.com,https://events.example.com")),
-			MetricsAddr:    getEnv("METRICS_ADDR", ""),
+			ServerAddr:          getEnv("SERVER_ADDR", ":8080"),
+			Mode:                getEnv("MODE", "debug"),
+			AllowedOrigins:      commaSplit(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:5173,https://example.com,https://events.example.com")),
+			MetricsAddr:         getEnv("METRICS_ADDR", ""),
+			ReadRateLimitPerMin: int(readRateLimit),
 		},
 		JWT: JWT{
 			AccessPublicKeyURL: os.Getenv("JWT_ACCESS_PUBLIC_KEY_URL"),

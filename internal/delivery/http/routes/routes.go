@@ -35,7 +35,9 @@ func SetupRoutes(db *gorm.DB, cfg *config.Config, svc service.EventsService, tok
 
 	h := handler.NewEventsHandler(svc)
 
-	authed := r.Group("/events", middleware.AuthMiddleware(tokens))
+	authed := r.Group("/events",
+		middleware.AuthMiddleware(tokens),
+		middleware.RateLimitPerMin(cfg.Server.ReadRateLimitPerMin))
 	{
 		authed.GET("", h.Feed)
 		authed.GET("/unread-count", h.UnreadCount)
